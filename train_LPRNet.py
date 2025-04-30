@@ -65,27 +65,27 @@ def adjust_learning_rate(optimizer, cur_epoch, base_lr, lr_schedule):
 
 def get_parser():
     parser = argparse.ArgumentParser(description='parameters to train net')
-    parser.add_argument('--max_epoch', type=int, default=15, help='epoch to train the network')
-    parser.add_argument('--img_size', nargs=2, type=int, default=[300, 75], help='the image size')
-    parser.add_argument('--train_img_dirs', default="/fastdata/users/nivv/plate_recognition/train", help='the train images path')
-    parser.add_argument('--test_img_dirs', default="/fastdata/users/nivv/plate_recognition/val", help='the test images path')
+    parser.add_argument('--max_epoch', type=int, default=300, help='epoch to train the network')
+    parser.add_argument('--img_size', nargs=2, type=int, default=[94, 24], help='the image size')
+    parser.add_argument('--train_img_dirs', default="./workspace/train", help='the train images path')
+    parser.add_argument('--test_img_dirs', default="./workspace/valid", help='the test images path')
     parser.add_argument('--dropout_rate', default=0.5, help='dropout rate.')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='base value of learning rate.')
     parser.add_argument('--lpr_max_len', default=10, type=int, help='license plate number max length.')
-    parser.add_argument('--train_batch_size', type=int, default=64, help='training batch size.')
-    parser.add_argument('--test_batch_size', type=int, default=32, help='testing batch size.')
-    parser.add_argument('--num_workers', default=8, type=int, help='Number of workers used in dataloading')
+    parser.add_argument('--train_batch_size', type=int, default=3, help='training batch size.')
+    parser.add_argument('--test_batch_size', type=int, default=1, help='testing batch size.')
+    parser.add_argument('--num_workers', default=1, type=int, help='Number of workers used in dataloading')
     parser.add_argument('--aug', default=True, type=bool, help='Use data augmentation')
     parser.add_argument('--cpu', action='store_true', help='Use CPU to train model (default is use cuda)')
     parser.add_argument('--resume_epoch', default=0, type=int, help='resume iter for retraining')
-    parser.add_argument('--save_interval', default=2000, type=int, help='epoch interval for save model state dict')
-    parser.add_argument('--test_interval', default=2000, type=int, help='epoch interval for evaluate')
+    parser.add_argument('--save_interval', default=5000, type=int, help='epoch interval for save model state dict')
+    parser.add_argument('--test_interval', default=5000, type=int, help='epoch interval for evaluate')
     parser.add_argument('--print_interval', default=100, type=int, help='epoch interval for info print')
     parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
     parser.add_argument('--optimizer', default='rmsprop', type=str, help='optimization algorithm', choices=['sgd', 'rmsprop', 'adam'])
     parser.add_argument('--weight_decay', default=1e-4, type=float, help='Weight decay for SGD')
     parser.add_argument('--lr_schedule', default=[4, 8, 12, 14, 16], help='schedule for learning rate.')
-    parser.add_argument('--save_folder', default='./runs/exp_large_dataset_aug_large_wd/', help='Location to save checkpoint models')
+    parser.add_argument('--save_folder', default='./runs3/', help='Location to save checkpoint models')
     parser.add_argument('--pretrained_model', default='', help='pretrained base model')
 
     args = parser.parse_args()
@@ -120,7 +120,7 @@ def log_training(path, *args):
     df.to_csv(os.path.join(path, 'training.log'))
 
 
-def log_tb(writer, iteration, train_loss, test_loss, acc_train, acc,
+'''def log_tb(writer, iteration, train_loss, test_loss, acc_train, acc,
            lv_norm_sim_train, lv_norm_sim_test, model, images, pred_fig):
     writer.add_graph(model, images)
     writer.add_scalar('Loss/train', train_loss, global_step=iteration)
@@ -129,7 +129,17 @@ def log_tb(writer, iteration, train_loss, test_loss, acc_train, acc,
     writer.add_scalar('Accuracy/test', acc, global_step=iteration)
     writer.add_scalar('Normalized Levenshtein Similarity/train', lv_norm_sim_train, global_step=iteration)
     writer.add_scalar('Normalized Levenshtein Similarity/test', lv_norm_sim_test, global_step=iteration)
-    writer.add_figure(F'Test Predictions', pred_fig, global_step=iteration)
+    writer.add_figure(F'Test Predictions', pred_fig, global_step=iteration)'''
+
+def log_tb(writer, iteration, train_loss, test_loss, acc_train, acc,
+           lv_norm_sim_train, lv_norm_sim_test, model, images):
+    writer.add_graph(model, images)
+    writer.add_scalar('Loss/train', train_loss, global_step=iteration)
+    writer.add_scalar('Loss/test', test_loss, global_step=iteration)
+    writer.add_scalar('Accuracy/train', acc_train, global_step=iteration)
+    writer.add_scalar('Accuracy/test', acc, global_step=iteration)
+    writer.add_scalar('Normalized Levenshtein Similarity/train', lv_norm_sim_train, global_step=iteration)
+    writer.add_scalar('Normalized Levenshtein Similarity/test', lv_norm_sim_test, global_step=iteration)
 
 
 def get_test_loss(net, dataset, batch_size, num_workers, T_length):
@@ -200,7 +210,7 @@ def train():
     args = get_parser()
     writer = SummaryWriter(args.save_folder)
 
-    T_length = 19 # args.lpr_max_len
+    T_length = 6 # args.lpr_max_len
     epoch = 0 + args.resume_epoch
     loss_val = 0
     best_acc = 0
@@ -339,7 +349,11 @@ def train():
                 acc_train, lv_norm_sim_train = _get_batch_metrics(logits, targets)
                 print('*** Evaluating on test set... ***')
                 # NOTE switch to eval and back to train is done by the deocder
-                acc, test_loss, lv_norm_sim_test, pred_fig =\
+                '''acc, test_loss, lv_norm_sim_test, pred_fig =\
+                    Greedy_Decode_Eval(lprnet, test_dataset,
+                                       args.test_batch_size, args,
+                                       T_length)'''
+                acc, test_loss, lv_norm_sim_test =\
                     Greedy_Decode_Eval(lprnet, test_dataset,
                                        args.test_batch_size, args,
                                        T_length)
@@ -350,9 +364,12 @@ def train():
                          test_loss,
                          acc_train, acc,
                          lv_norm_sim_train, lv_norm_sim_test)
+            '''log_tb(writer, iteration, loss_val/(epoch_iter + 1), test_loss,
+                   acc_train, acc,
+                   lv_norm_sim_train, lv_norm_sim_test, lprnet, images, pred_fig)'''
             log_tb(writer, iteration, loss_val/(epoch_iter + 1), test_loss,
                    acc_train, acc,
-                   lv_norm_sim_train, lv_norm_sim_test, lprnet, images, pred_fig)
+                   lv_norm_sim_train, lv_norm_sim_test, lprnet, images)
 
             if acc > best_acc:
                 print(F'New Best! {acc}')
@@ -388,6 +405,7 @@ def show_batch_pred(images, preds, targets, subplots=16):
         img = img.astype(np.uint8)
         img = img[..., [2, 1, 0]]  # BGR --> RGB
         return img
+
     fig = plt.figure()
     for idx in range(subplots):
         try:
@@ -405,6 +423,7 @@ def show_batch_pred(images, preds, targets, subplots=16):
         color = 'green' if (np.asarray(pred) == np.asarray(target)).all() else 'red'
         ax.set_title(F"{pred}", size=12, color=color)
         ax.axis('off')
+        plt.close()
     return fig
 
 
@@ -472,7 +491,7 @@ def Greedy_Decode_Eval(Net, datasets, batch_size, args, T_length):
                 pre_c = c
             preb_labels.append(no_repeat_blank_label)
         
-        batch_preds = show_batch_pred(imgs, preb_labels, targets)
+        # batch_preds = show_batch_pred(imgs, preb_labels, targets)
         # Metrics calcs
         lv = 0
         for i, label in enumerate(preb_labels):
@@ -500,7 +519,7 @@ def Greedy_Decode_Eval(Net, datasets, batch_size, args, T_length):
     
     Net.train()
 
-    return Acc, loss_val, lv_sim, batch_preds
+    return Acc, loss_val, lv_sim #, batch_preds
 
 if __name__ == "__main__":
     train()
